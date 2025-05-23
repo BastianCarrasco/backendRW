@@ -46,15 +46,41 @@ app.get('/fondos/:id', async (req, res) => {
 // Crear un nuevo fondo
 app.post('/fondos', async (req, res) => {
   try {
-    const { nombre, url, fechainicio, plataforma, fechacierre } = req.body;
+    const { nombre, url, plataforma, fechainicio, fechacierre } = req.body;
+    
+    // Validación de campos requeridos
+    if (!nombre || !url || !plataforma || !fechainicio || !fechacierre) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios' });
+    }
+
+    // Convertir las fechas a objetos Date si vienen como strings
+    const fechaInicio = new Date(fechainicio);
+    const fechaCierre = new Date(fechacierre);
+
+    // Validar que las fechas sean válidas
+    if (isNaN(fechaInicio.getTime()) || isNaN(fechaCierre.getTime())) {
+      return res.status(400).json({ error: 'Fechas inválidas' });
+    }
+
     const { rows } = await pool.query(
-      'INSERT INTO fondos (nombre, url, fechainicio, plataforma, fechacierre, contador) VALUES ($1, $2, $3, $4, $5, 0) RETURNING *',
-      [nombre, url, fechainicio, plataforma, fechacierre]
+      'INSERT INTO fondos (nombre, url, plataforma, fechainicio, fechacierre, contador) VALUES ($1, $2, $3, $4, $5, 0) RETURNING *',
+      [nombre, url, plataforma, fechaInicio, fechaCierre]
     );
-    res.status(201).json(rows[0]);
+    
+    // Formatear las fechas en la respuesta
+    const responseData = {
+      ...rows[0],
+      fechainicio: rows[0].fechainicio.toISOString(),
+      fechacierre: rows[0].fechacierre.toISOString()
+    };
+    
+    res.status(201).json(responseData);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al crear el fondo' });
+    console.error('Error en POST /fondos:', err);
+    res.status(500).json({ 
+      error: 'Error al crear el fondo',
+      details: err.message 
+    });
   }
 });
 
